@@ -13,3 +13,49 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model Book {
+  id            Int      @id @default(autoincrement())
+  isbn          String   @unique
+  title         String
+  author        String
+  quantity      Int      @default(0)   // total copies library owns
+  shelfLocation String
+
+  // Relations
+  borrows       Borrow[]
+
+  // Indexes for fast search
+  @@index([title])
+  @@index([author])
+  // Since isbn is already @unique, Prisma will automatically create an index.
+}
+
+model Borrower {
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  registeredDate DateTime @default(now())
+
+  // Relations
+  borrows        Borrow[]
+}
+
+model Borrow {
+  id         Int       @id @default(autoincrement())
+
+  // Relations
+  borrower   Borrower  @relation(fields: [borrowerId], references: [id])
+  borrowerId Int
+  book       Book      @relation(fields: [bookId], references: [id])
+  bookId     Int
+
+  // Borrowing details
+  borrowDate DateTime  @default(now())   // when the book was borrowed
+  dueDate    DateTime                    // expected return date
+  returnDate DateTime?                   // null = still borrowed
+
+  // Indexes for performance
+  @@index([dueDate])     // to quickly find overdue books
+  @@index([returnDate])  // to filter active vs returned
+}
