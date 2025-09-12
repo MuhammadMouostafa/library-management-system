@@ -1,13 +1,32 @@
 const { PrismaClient } = require('../generated/prisma');
+const { handlePrismaError } = require("../utils/prismaErrorHandler");
 const prisma = new PrismaClient();
 
 // Borrow a book
 const borrowBook = async (req, res) => {
   const { borrowerId, bookId, dueDate } = req.body;
   try {
-    const book = await prisma.book.findUnique({ where: { id: bookId } });
-    if (!book) return res.status(404).json({ error: 'Book not found' });
+     // Validate dueDate
+    const parsedDueDate = new Date(dueDate);
+    if (isNaN(parsedDueDate)) {
+      return res.status(400).json({
+        errors: [{ field: "dueDate", message: "Invalid due date format" }]
+      });
+    }
 
+    if (parsedDueDate < new Date()) {
+      return res.status(400).json({
+        errors: [{ field: "dueDate", message: "Due date cannot be in the past" }]
+      });
+    }
+    
+    // check if book exists
+    const book = await prisma.book.findUnique({ where: { id: bookId } });
+    if (!book) {
+      return res.status(404).json({
+        errors: [{ field: "Book", message: "Book not found" }]
+      });
+    }
     // Count active borrows (returnDate is null)
     const activeBorrows = await prisma.borrow.count({
       where: { bookId: parseInt(bookId), returnDate: null }
@@ -15,7 +34,11 @@ const borrowBook = async (req, res) => {
 
     const availableQuantity = book.quantity - activeBorrows;
 
-    if (availableQuantity <= 0) return res.status(400).json({ error: 'No available copies' });
+    if (availableQuantity <= 0) {
+      return res.status(400).json({
+        errors: [{ field: "Book", message: "No available copies" }]
+      });
+    }
 
     // Create borrow record
     const borrow = await prisma.borrow.create({
@@ -24,18 +47,31 @@ const borrowBook = async (req, res) => {
 
     res.status(201).json(borrow);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to borrow book' });
+    handlePrismaError(err, res, "Failed to Borrow Book");
   }
 };
 
 // Return a book
 const returnBook = async (req, res) => {
-  const { borrowId } = req.body;
+  const { id } = req.params;
+  const borrowId = parseInt(id);
   try {
     const borrow = await prisma.borrow.findUnique({ where: { id: borrowId } });
-    if (!borrow) return res.status(404).json({ error: 'Borrow record not found' });
-    if (borrow.returnDate) return res.status(400).json({ error: 'Book already returned' });
+    if (!borrow){
+      return res.status(404).json({
+        errors: [{ field: "Borrow", message: "Borrow record not found" }]
+      });
+    }
+      
+    if (borrow.returnDate) {
+      return res.status(400).json({
+        errors: [{ field: "Borrow", message: "Book already returned" }]
+      });
+    }
+
+    if (new Date() > borrow.dueDate) {
+      console.warn(`⚠️ Book return is overdue for borrowId ${borrow.id}`);
+    }
 
     // Update borrow record
     const updatedBorrow = await prisma.borrow.update({
@@ -45,8 +81,7 @@ const returnBook = async (req, res) => {
 
     res.json(updatedBorrow);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to return book' });
+    handlePrismaError(err, res, "Failed to add book");
   }
 };
 
@@ -60,8 +95,7 @@ const getBorrowedBooks = async (req, res) => {
     });
     res.json(borrows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch borrowed books' });
+    handlePrismaError(err, res, "Failed to add book");
   }
 };
 
@@ -75,8 +109,7 @@ const getOverdueBooks = async (req, res) => {
     });
     res.json(overdue);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch overdue books' });
+    handlePrismaError(err, res, "Failed to add book");
   }
 };
 

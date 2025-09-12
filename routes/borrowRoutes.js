@@ -6,7 +6,7 @@ const borrowController = require('../controllers/borrowController');
 router.post('/borrow', borrowController.borrowBook);
 
 // Return a book
-router.post('/return', borrowController.returnBook);
+router.post('/return/:id', borrowController.returnBook);
 
 // List books currently borrowed by a borrower
 router.get('/borrower/:id/books', borrowController.getBorrowedBooks);
