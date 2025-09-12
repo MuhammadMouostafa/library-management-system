@@ -1,4 +1,6 @@
 const { PrismaClient } = require('../generated/prisma');
+const { handlePrismaError } = require("../utils/prismaErrorHandler");
+const { validateBorrowerInput } = require("../validators/borrowerValidator");
 const prisma = new PrismaClient();
 
 // List all borrowers, including borrowed books
@@ -7,38 +9,35 @@ const getAllBorrowers = async (req, res) => {
     const borrowers = await prisma.borrower.findMany();
     res.json(borrowers);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch borrowers' });
+    handlePrismaError(err, res, "Failed to fetch borrower");
   }
 };
 
 // Add a new borrower
 const addBorrower = async (req, res) => {
-  const { name, email } = req.body;
+  const errors = validateBorrowerInput(req.body);
+  if (errors.length > 0)  return res.status(400).json({ errors });
   try {
-    const newBorrower = await prisma.borrower.create({
-      data: { name, email }
-    });
+    const newBorrower = await prisma.borrower.create({ data: req.body });
     res.status(201).json(newBorrower);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add borrower' });
+    handlePrismaError(err, res, "Failed to add borrower");
   }
 };
 
 // Update a borrower
 const updateBorrower = async (req, res) => {
+  const errors = validateBorrowerInput(req.body);
+  if (errors.length > 0)  return res.status(400).json({ errors });
   const { id } = req.params;
-  const { name, email } = req.body;
   try {
     const updatedBorrower = await prisma.borrower.update({
       where: { id: parseInt(id) },
-      data: { name, email }
+      data: req.body
     });
     res.json(updatedBorrower);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update borrower' });
+    handlePrismaError(err, res, "Failed to update borrower");
   }
 };
 
@@ -46,13 +45,10 @@ const updateBorrower = async (req, res) => {
 const deleteBorrower = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.borrower.delete({
-      where: { id: parseInt(id) }
-    });
+    await prisma.borrower.delete({ where: { id: parseInt(id) } });
     res.json({ message: 'Borrower deleted successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete borrower' });
+    handlePrismaError(err, res, "Failed to delete borrower");
   }
 };
 
