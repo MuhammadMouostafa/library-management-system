@@ -117,23 +117,44 @@ const deleteBook = async (req, res) => {
 
 // Search books by title, author, or ISBN
 const searchBooks = async (req, res) => {
-  const { q } = req.query;
+  const { q, page = 1, limit = 10 } = req.query;
+
   if (!q || q.trim() === "") {
-     return res.status(400).json({
+    return res.status(400).json({
       errors: [{ field: "Query", message: "Missing or empty search query (?q=...)" }]
     });
   }
+
   try {
-    const books = await prisma.book.findMany({
-      where: {
-        OR: [
-          { title: { contains: q } },
-          { author: { contains: q } },
-          { isbn: { contains: q } },
-        ],
-      },
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    const where = {
+      OR: [
+        { title: { contains: q } },
+        { author: { contains: q } },
+        { isbn: { contains: q } },
+      ],
+    };
+
+    const [books, total] = await Promise.all([
+      prisma.book.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { title: "asc" }
+      }),
+      prisma.book.count({ where })
+    ]);
+
+    res.json({
+      totalBooks: total,
+      limitPerPage: take,
+      totalPages: Math.ceil(total / take),
+      pageNumber: parseInt(page),
+      booksInPageCount: books.length,
+      books
     });
-    res.json(books);
   } catch (err) {
     handlePrismaError(err, res, "Failed to search books");
   }
