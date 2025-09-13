@@ -99,17 +99,35 @@ const getBorrowedBooks = async (req, res) => {
   }
 };
 
-// List all overdue books
-const getOverdueBooks = async (req, res) => {
+// Get borrows with optional state filter
+const getBorrows = async (req, res) => {
+  const { state = "all" } = req.query; // ?state=active|overdue|returned|all
+  const now = new Date();
+
   try {
-    const now = new Date();
-    const overdue = await prisma.borrow.findMany({
-      where: { returnDate: null, dueDate: { lt: now } },
-      include: { borrower: true, book: true }
+    let where = {};
+    switch (state) {
+      case "active":   where = { returnDate: null };                       break;
+      case "overdue":  where = { returnDate: null, dueDate: { lt: now } }; break;
+      case "returned": where = { returnDate: { not: null } };              break;
+      case "all":      where = {};                                         break;
+      default:
+        return res.status(400).json({
+          errors: [{ field: "state", message: "Invalid state. Use active, overdue, returned, or all" }]
+        });
+    }
+
+    const borrows = await prisma.borrow.findMany({
+      where,
+      include: {
+        borrower: true,
+        book: true
+      }
     });
-    res.json(overdue);
+
+    res.json(borrows);
   } catch (err) {
-    handlePrismaError(err, res, "Failed to add book");
+    handlePrismaError(err, res, "Failed to fetch borrows");
   }
 };
 
@@ -117,5 +135,5 @@ module.exports = {
   borrowBook,
   returnBook,
   getBorrowedBooks,
-  getOverdueBooks
+  getBorrows
 };

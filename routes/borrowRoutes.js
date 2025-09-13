@@ -11,7 +11,7 @@ router.post('/return/:id', borrowController.returnBook);
 // List books currently borrowed by a borrower
 router.get('/borrower/:id/books', borrowController.getBorrowedBooks);
 
-// List all overdue books
-router.get('/overdue', borrowController.getOverdueBooks);
+// List borrows with state filter
+router.get("/", borrowController.getBorrows);
 
 module.exports = router;
