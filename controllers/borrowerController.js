@@ -3,13 +3,34 @@ const { handlePrismaError } = require("../utils/prismaErrorHandler");
 const { validateBorrowerInput } = require("../validators/borrowerValidator");
 const prisma = new PrismaClient();
 
-// List all borrowers, including borrowed books
+// List all borrowers
 const getAllBorrowers = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+
   try {
-    const borrowers = await prisma.borrower.findMany();
-    res.json(borrowers);
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    // Fetch borrowers with pagination
+    const [borrowers, total] = await Promise.all([
+      prisma.borrower.findMany({
+        skip,
+        take,
+        orderBy: { name: "asc" }
+      }),
+      prisma.borrower.count()
+    ]);
+
+    res.json({
+      totalBorrowers: total,
+      limitPerPage: take,
+      totalPages: Math.ceil(total / take),
+      pageNumber: parseInt(page),
+      borrowersInPageCount: borrowers.length,
+      borrowers
+    });
   } catch (err) {
-    handlePrismaError(err, res, "Failed to fetch borrower");
+    handlePrismaError(err, res, "Failed to fetch borrowers");
   }
 };
 
