@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { PrismaClient } = require('./generated/prisma');
 
@@ -8,6 +9,9 @@ const borrowRoutes = require('./routes/borrowRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
+
+// ---- Security Middlewares ---- //
+app.use(helmet()); // set secure HTTP headers
 
 // Rate limiting
 const limiter = rateLimit({
