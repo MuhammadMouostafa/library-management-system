@@ -101,7 +101,7 @@ const getBorrowedBooks = async (req, res) => {
 
 // Get borrows with optional state filter
 const getBorrows = async (req, res) => {
-  const { state = "all" } = req.query; // ?state=active|overdue|returned|all
+  const { state = "all", page = 1, limit = 10 } = req.query;
   const now = new Date();
 
   try {
@@ -117,15 +117,30 @@ const getBorrows = async (req, res) => {
         });
     }
 
-    const borrows = await prisma.borrow.findMany({
-      where,
-      include: {
-        borrower: true,
-        book: true
-      }
-    });
+    // Pagination setup
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
 
-    res.json(borrows);
+    // Query with pagination
+    const [borrows, total] = await Promise.all([
+      prisma.borrow.findMany({
+        where,
+        include: { borrower: true, book: true },
+        skip,
+        take,
+        orderBy: { borrowDate: "desc" }
+      }),
+      prisma.borrow.count({ where })
+    ]);
+
+    res.json({
+      totalBorrows: total,
+      limitPerPage: take,
+      totalPages: Math.ceil(total / take),
+      pageNumber: parseInt(page),
+      borrowsInPageCount: borrows.length,
+      borrowsPage: borrows
+    });
   } catch (err) {
     handlePrismaError(err, res, "Failed to fetch borrows");
   }
