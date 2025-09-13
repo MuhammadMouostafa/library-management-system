@@ -101,7 +101,7 @@ const getBorrowedBooks = async (req, res) => {
 
 // Get borrows with optional state filter
 const getBorrows = async (req, res) => {
-  const { state = "all", page = 1, limit = 10, startDate, endDate } = req.query;
+  const { state = "all", page = 1, limit = 10, startDate, endDate, lastMonth } = req.query;
   const now = new Date();
   const hasTimePart = (date) => date.includes("T") || /\d{2}:\d{2}/.test(date);
 
@@ -119,7 +119,13 @@ const getBorrows = async (req, res) => {
     }
 
     // Date range filter
-    if (startDate || endDate) {
+    if (lastMonth === "true") {
+      // Calculate first and last day of last month
+      const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+      where.borrowDate = { gte: firstDay, lte: lastDay };
+    } else if (startDate || endDate) {
       where.borrowDate = {};
 
       if (startDate) {
