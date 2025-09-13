@@ -12,9 +12,9 @@ const prisma = new PrismaClient();
 app.use(express.json());
 
 // ---- Routes ---- //
-app.use('/books', bookRoutes);
-app.use('/borrowers', borrowerRoutes);
-app.use('/', borrowRoutes);
+app.use("/api/v1/books", bookRoutes);
+app.use("/api/v1/borrowers", borrowerRoutes);
+app.use("/api/v1/", borrowRoutes);
 
 // ---- Global Error Handler ---- //
 app.use((err, req, res, next) => {
