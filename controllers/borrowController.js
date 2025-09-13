@@ -101,8 +101,9 @@ const getBorrowedBooks = async (req, res) => {
 
 // Get borrows with optional state filter
 const getBorrows = async (req, res) => {
-  const { state = "all", page = 1, limit = 10 } = req.query;
+  const { state = "all", page = 1, limit = 10, startDate, endDate } = req.query;
   const now = new Date();
+  const hasTimePart = (date) => date.includes("T") || /\d{2}:\d{2}/.test(date);
 
   try {
     let where = {};
@@ -115,6 +116,33 @@ const getBorrows = async (req, res) => {
         return res.status(400).json({
           errors: [{ field: "state", message: "Invalid state. Use active, overdue, returned, or all" }]
         });
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      where.borrowDate = {};
+
+      if (startDate) {
+        const parsedStart = new Date(startDate);
+        if (isNaN(parsedStart)) {
+          return res.status(400).json({
+            errors: [{ field: "startDate", message: "Invalid startDate format" }]
+          });
+        }
+        if (!hasTimePart(startDate)) parsedStart.setHours(0, 0, 0, 0);
+        where.borrowDate.gte = parsedStart;
+      }
+
+      if (endDate) {
+        const parsedEnd = new Date(endDate);
+        if (isNaN(parsedEnd)) {
+          return res.status(400).json({
+            errors: [{ field: "endDate", message: "Invalid endDate format" }]
+          });
+        }
+        if (!hasTimePart(endDate)) parsedEnd.setHours(23, 59, 59, 999);
+        where.borrowDate.lte = parsedEnd;
+      }
     }
 
     // Pagination setup
