@@ -1,5 +1,6 @@
 const { PrismaClient } = require('../generated/prisma');
 const { handlePrismaError } = require("../utils/prismaErrorHandler");
+const { exportData } = require("../utils/exporter");
 const prisma = new PrismaClient();
 
 // Borrow a book
@@ -101,7 +102,7 @@ const getBorrowedBooks = async (req, res) => {
 
 // Get borrows with optional state filter
 const getBorrows = async (req, res) => {
-  const { state = "all", page = 1, limit = 10, startDate, endDate, lastMonth } = req.query;
+  const { state = "all", page = 1, limit = 10, startDate, endDate, lastMonth, format } = req.query;
   const now = new Date();
   const hasTimePart = (date) => date.includes("T") || /\d{2}:\d{2}/.test(date);
 
@@ -159,21 +160,40 @@ const getBorrows = async (req, res) => {
     const [borrows, total] = await Promise.all([
       prisma.borrow.findMany({
         where,
-        include: { borrower: true, book: true },
         skip,
         take,
-        orderBy: { borrowDate: "desc" }
+        orderBy: { borrowDate: "desc" },
+        select: {
+          id: true,
+          borrowDate: true,
+          dueDate: true,
+          returnDate: true,
+          book: { select: { id: true, title: true } },
+          borrower: { select: { id: true, name: true } }
+        }
       }),
       prisma.borrow.count({ where })
     ]);
+
+    const formattedBorrows = borrows.map(({ book, borrower, ...rest }) => ({
+      ...rest,
+      bookId: book.id,
+      bookTitle: book.title,
+      borrowerId: borrower.id,
+      borrowerName: borrower.name
+    }));
+
+    if (format === "csv" || format === "xlsx") {
+      return exportData(res, borrows, format, "borrows");
+    }
 
     res.json({
       totalBorrows: total,
       limitPerPage: take,
       totalPages: Math.ceil(total / take),
       pageNumber: parseInt(page),
-      borrowsInPageCount: borrows.length,
-      borrowsPage: borrows
+      borrowsInPageCount: formattedBorrows.length,
+      borrowsPage: formattedBorrows
     });
   } catch (err) {
     handlePrismaError(err, res, "Failed to fetch borrows");
