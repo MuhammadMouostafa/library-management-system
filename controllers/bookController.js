@@ -7,7 +7,31 @@ const prisma = new PrismaClient();
 const getAllBooks = async (req, res) => {
   try {
     const books = await prisma.book.findMany();
-    res.json(books);
+
+    // Fetch active borrow counts for all books in one query
+    const borrowCounts = await prisma.borrow.groupBy({
+      by: ['bookId'],
+      where: { returnDate: null },
+      _count: { id: true }
+    });
+
+    // Create a map: bookId -> activeBorrows
+    const borrowMap = {};
+    borrowCounts.forEach(b => {
+      borrowMap[b.bookId] = b._count.id;
+    });
+
+    // Map each book to include availableQuantity
+    const booksWithAvailability = books.map(book => {
+      const activeBorrows = borrowMap[book.id] || 0;
+      return {
+        ...book,
+        activeBorrows,
+        availableQuantity: book.quantity - activeBorrows
+      };
+    });
+
+    res.json(booksWithAvailability);
   } catch (err) {
     handlePrismaError(err, res, "Failed to fetch Books");
   }
