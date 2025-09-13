@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require("express-rate-limit");
 const { PrismaClient } = require('./generated/prisma');
 
 const bookRoutes = require('./routes/bookRoutes');
@@ -7,6 +8,14 @@ const borrowRoutes = require('./routes/borrowRoutes');
 
 const app = express();
 const prisma = new PrismaClient();
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  message: { error: "Too many requests, please try again later." },
+});
+app.use(limiter);
 
 // ---- Body Parser ---- //
 app.use(express.json());
