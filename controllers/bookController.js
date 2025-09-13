@@ -5,8 +5,21 @@ const prisma = new PrismaClient();
 
 // List all books
 const getAllBooks = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+
   try {
-    const books = await prisma.book.findMany();
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    // Fetch books with pagination
+    const [books, total] = await Promise.all([
+      prisma.book.findMany({
+        skip,
+        take,
+        orderBy: { title: "asc" }
+      }),
+      prisma.book.count()
+    ]);
 
     // Fetch active borrow counts for all books in one query
     const borrowCounts = await prisma.borrow.groupBy({
@@ -31,9 +44,16 @@ const getAllBooks = async (req, res) => {
       };
     });
 
-    res.json(booksWithAvailability);
+    res.json({
+      totalBooks: total,
+      limitPerPage: take,
+      totalPages: Math.ceil(total / take),
+      pageNumber: parseInt(page),
+      booksInPageCount: booksWithAvailability.length,
+      books: booksWithAvailability
+    });
   } catch (err) {
-    handlePrismaError(err, res, "Failed to fetch Books");
+    handlePrismaError(err, res, "Failed to fetch books");
   }
 };
 
