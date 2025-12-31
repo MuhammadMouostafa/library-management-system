@@ -21,6 +21,7 @@ model Book {
   author        String
   quantity      Int    @default(0) // total copies library owns
   shelfLocation String
+  imageURL      String
 
   // Relations
   borrows Borrow[]

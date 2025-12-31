@@ -1,7 +1,7 @@
 function validateBookInput(book) {
   const errors = [];
 
-  const { title, author, isbn, quantity, shelfLocation } = book;
+  const { title, author, isbn, quantity, shelfLocation, imageURL } = book;
 
   if (!title || !title.trim()) {
     errors.push({ field: "title", message: "Title is required" });
@@ -32,6 +32,16 @@ function validateBookInput(book) {
         field: "shelfLocation",
         message: "Shelf location must follow format like A-12 (capital letter, dash, number)",
       });
+    }
+  }
+
+  if (!imageURL || !imageURL.trim()) {
+    errors.push({ field: "imageURL", message: "Image URL is required" });
+  }else {
+    try {
+      new URL(imageURL);
+    } catch (e) {
+      errors.push({ field: "imageURL", message: "imageURL must be a valid URL" });
     }
   }
 
