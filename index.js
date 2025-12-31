@@ -4,6 +4,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { PrismaClient } = require("./generated/prisma");
 
+const categoryRoutes = require("./routes/categoryRoutes");
 const bookRoutes = require("./routes/bookRoutes");
 const borrowerRoutes = require("./routes/borrowerRoutes");
 const borrowRoutes = require("./routes/borrowRoutes");
@@ -38,6 +39,7 @@ app.use(limiter);
 app.use(express.json());
 
 // ---- Routes ---- //
+app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/books", bookRoutes);
 app.use("/api/v1/borrowers", borrowerRoutes);
 app.use("/api/v1/", borrowRoutes);
