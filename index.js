@@ -1,14 +1,27 @@
-const express = require('express');
+const express = require("express");
+const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const { PrismaClient } = require('./generated/prisma');
+const { PrismaClient } = require("./generated/prisma");
 
-const bookRoutes = require('./routes/bookRoutes');
-const borrowerRoutes = require('./routes/borrowerRoutes');
-const borrowRoutes = require('./routes/borrowRoutes');
+const bookRoutes = require("./routes/bookRoutes");
+const borrowerRoutes = require("./routes/borrowerRoutes");
+const borrowRoutes = require("./routes/borrowRoutes");
 
 const app = express();
 const prisma = new PrismaClient();
+
+// ---- Important Fixes ---- //
+app.disable("etag");
+
+// ---- CORS (MUST be before routes) ---- //
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // ---- Security Middlewares ---- //
 app.use(helmet()); // set secure HTTP headers
