@@ -14,6 +14,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  order Int    @default(0)
+
+  // Relations
+  books Book[]
+}
+
 model Book {
   id            Int    @id @default(autoincrement())
   isbn          String @unique
@@ -25,6 +34,9 @@ model Book {
 
   // Relations
   borrows Borrow[]
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
   // Since isbn is already @unique, Prisma will automatically create an index.
 
   // Indexes for fast search
