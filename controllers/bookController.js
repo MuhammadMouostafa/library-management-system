@@ -57,6 +57,94 @@ const getAllBooks = async (req, res) => {
   }
 };
 
+// List all books by category
+const getBooksByCategory = async (req, res) => {
+  const { categoryId } = req.query;
+  const { page = 1, limit = 10 } = req.query;
+
+  try {
+    const categoryIdInt = parseInt(categoryId);
+    if (isNaN(categoryIdInt)) {
+      return res.status(400).json({
+        errors: [{ field: "categoryId", message: "Invalid or missing categoryId" }]
+      });
+    }
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    // Validate category exists
+    const category = await prisma.category.findUnique({
+      where: { id: categoryIdInt }
+    });
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // Fetch books with pagination filtered by category
+    const [books, total] = await Promise.all([
+      prisma.book.findMany({
+        where: { categoryId: categoryIdInt },
+        skip,
+        take,
+        orderBy: { title: "asc" },
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        }
+      }),
+      prisma.book.count({
+        where: { categoryId: categoryIdInt }
+      })
+    ]);
+
+    // Fetch active borrow counts for all books in one query
+    const borrowCounts = await prisma.borrow.groupBy({
+      by: ['bookId'],
+      where: { 
+        returnDate: null,
+        bookId: { in: books.map(book => book.id) }
+      },
+      _count: { id: true }
+    });
+
+    // Create a map: bookId -> activeBorrows
+    const borrowMap = {};
+    borrowCounts.forEach(b => {
+      borrowMap[b.bookId] = b._count.id;
+    });
+
+    // Map each book to include availableQuantity
+    const booksWithAvailability = books.map(book => {
+      const activeBorrows = borrowMap[book.id] || 0;
+      return {
+        ...book,
+        activeBorrows,
+        availableQuantity: book.quantity - activeBorrows
+      };
+    });
+
+    res.json({
+      category: {
+        id: category.id,
+        name: category.name
+      },
+      totalBooks: total,
+      limitPerPage: take,
+      totalPages: Math.ceil(total / take),
+      pageNumber: parseInt(page),
+      booksInPageCount: booksWithAvailability.length,
+      books: booksWithAvailability
+    });
+  } catch (err) {
+    handlePrismaError(err, res, "Failed to fetch books by category");
+  }
+};
+
 // Add a new book
 const addBook = async (req, res) => {
   const errors = validateBookInput(req.body);
@@ -162,6 +250,7 @@ const searchBooks = async (req, res) => {
 
 module.exports = {
   getAllBooks,
+  getBooksByCategory,
   addBook,
   updateBook,
   deleteBook,
