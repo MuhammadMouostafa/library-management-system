@@ -42,7 +42,7 @@ app.use(express.json());
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/books", bookRoutes);
 app.use("/api/v1/borrowers", borrowerRoutes);
-app.use("/api/v1/", borrowRoutes);
+app.use("/api/v1/borrows", borrowRoutes);
 
 // ---- Global Error Handler ---- //
 app.use((err, req, res, next) => {
